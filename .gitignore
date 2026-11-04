@@ -1,0 +1,5 @@
+# Build output
+dist/
+
+# WebView2 SDK, downloaded by build.ps1
+lib/
