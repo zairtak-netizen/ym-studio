@@ -43,8 +43,9 @@ namespace YMStudio
         }
     }
 
-    // Wallpaper Engine draws scene wallpapers itself, so the app can't render them. It reads what is
-    // selected for colours and titles, and drives playback through the documented -control switches.
+    // Reads the Wallpaper Engine library. Video files can be played directly; scenes and web wallpapers are
+    // drawn by Wallpaper Engine alone, so only their previews are usable. Its -control switches had no effect
+    // on a running instance when tested, so nothing here relies on them.
     class WallpaperEngine
     {
         const long MaxPreviewBytes = 8 * 1024 * 1024;
@@ -75,13 +76,6 @@ namespace YMStudio
         public DateTime ConfigTime
         {
             get { return Installed && File.Exists(ConfigPath) ? File.GetLastWriteTimeUtc(ConfigPath) : DateTime.MinValue; }
-        }
-
-        public void Control(string arguments)
-        {
-            if (!Installed) return;
-            try { Process.Start(new ProcessStartInfo(exe, "-control " + arguments) { UseShellExecute = false, CreateNoWindow = true }); }
-            catch (System.ComponentModel.Win32Exception) { }
         }
 
         static object Dig(object node, params string[] path)
@@ -233,13 +227,6 @@ namespace YMStudio
             return kind == "video" ? entry[0] : kind == "preview" ? entry[1] : null;
         }
 
-        // Scenes and web wallpapers can only be drawn by Wallpaper Engine, so they go to the desktop.
-        public void Open(string id)
-        {
-            string[] entry;
-            if (videos.TryGetValue(id, out entry)) Control("openWallpaper -file \"" + Path.Combine(entry[2], "project.json") + "\"");
-        }
-
         public static string ContentType(string file)
         {
             switch (Path.GetExtension(file).ToLowerInvariant())
@@ -253,26 +240,6 @@ namespace YMStudio
             }
         }
 
-        // Picks another wallpaper from the folder of the current one, which is where the workshop keeps them.
-        public void OpenRandom()
-        {
-            var file = SelectedFile();
-            if (file == null) return;
-            try
-            {
-                var current = Path.GetDirectoryName(file.Replace('/', Path.DirectorySeparatorChar));
-                var options = new List<string>();
-                foreach (var dir in Directory.GetDirectories(Path.GetDirectoryName(current)))
-                {
-                    if (!string.Equals(dir, current, StringComparison.OrdinalIgnoreCase) && File.Exists(Path.Combine(dir, "project.json"))) options.Add(dir);
-                }
-                if (options.Count == 0) return;
-                var pick = options[new Random().Next(options.Count)];
-                Control("openWallpaper -file \"" + Path.Combine(pick, "project.json") + "\"");
-            }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
-        }
     }
 
     class MainForm : Form
@@ -304,7 +271,7 @@ namespace YMStudio
         readonly Size minNormal = new Size(820, 560);
         NotifyIcon tray;
         CoreWebView2Environment webEnvironment;
-        bool mini, pinned, seeThrough, closeToTray, exiting, fullscreen, enginePausedByUs, engineRunning;
+        bool mini, pinned, seeThrough, closeToTray, exiting, fullscreen, engineRunning;
         double zoom = 1;
         DateTime engineStamp;
         Rectangle savedBounds;
@@ -624,7 +591,6 @@ namespace YMStudio
 
         void EngineCommand(string command)
         {
-            if (command != null && command.StartsWith("open:")) { engine.Open(command.Substring(5)); return; }
             switch (command)
             {
                 case "watch":
@@ -632,15 +598,6 @@ namespace YMStudio
                     PostEngine();
                     break;
                 case "unwatch": engineTimer.Stop(); break;
-                case "pause":
-                    enginePausedByUs = true;
-                    engine.Control("pause");
-                    break;
-                case "play":
-                    enginePausedByUs = false;
-                    engine.Control("play");
-                    break;
-                case "random": engine.OpenRandom(); break;
                 case "videos": Post("wevideos", engine.ListVideos()); break;
             }
         }
@@ -713,7 +670,6 @@ namespace YMStudio
             catch (IOException) { }
             SetHotkeys(null);
             engineTimer.Stop();
-            if (enginePausedByUs) engine.Control("play"); // never leave the user's desktop frozen
             tray.Visible = false;
             tray.Dispose();
             base.OnFormClosing(e);

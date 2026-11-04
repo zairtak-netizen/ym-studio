@@ -156,7 +156,7 @@
     grain: 0, vignette: 0, bgMotion: false, bgPulse: false, parallax: false,
     glass: false, glassOpacity: 55, radius: 'default', font: '', uiZoom: '100',
     island: false, barHide: false, navHide: false, vinyl: false, pulse: false, progressGlow: false,
-    weAccent: false, wePause: false, weVideo: '',
+    weAccent: false, wePause: false, weVideo: '', weKind: 'video',
     eqOn: false, eqBands: [0, 0, 0, 0, 0, 0, 0], eqPreset: 'flat',
     myLooks: [], autoMode: 'off', dayLook: '', nightLook: '', dayFrom: '08:00', nightFrom: '20:00', pageLooks: {},
     trayClose: false, trackToast: false, pin: false,
@@ -585,11 +585,12 @@ background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 3
     let image = '';
     if (s.bg === 'cover' && now.cover) image = `url("${now.cover}")`;
     if (s.bg === 'image' && s.image) image = `url("${s.image}")`;
+    if (s.bg === 'wevideo' && s.weVideo && s.weKind !== 'video') image = `url("/__yms/preview/${encodeURIComponent(s.weVideo)}")`;
     if (s.bg === 'gradient') {
       image = `radial-gradient(60% 70% at 15% 10%, ${alpha(A, 55)}, transparent), radial-gradient(60% 60% at 90% 90%, ${alpha(A, 35)}, transparent)`;
     }
     bgImage.style.backgroundImage = image;
-    const photo = s.bg === 'cover' || s.bg === 'image';
+    const photo = ['cover', 'image', 'wevideo'].includes(s.bg);
     bgImage.style.filter = `${photo ? `blur(${s.blur}px) ` : ''}saturate(${s.bgSat}%)`;
 
     bgAurora.style.display = s.bg === 'aurora' ? 'block' : 'none';
@@ -607,7 +608,7 @@ background:repeating-linear-gradient(0deg,rgba(0,0,0,.2) 0 1px,transparent 1px 3
   }
 
   function renderVideo() {
-    const on = s.bg === 'wevideo' && !!s.weVideo;
+    const on = s.bg === 'wevideo' && !!s.weVideo && s.weKind === 'video';
     bgVideo.style.display = on ? 'block' : 'none';
     if (!on) {
       if (bgVideo.getAttribute('src')) { bgVideo.pause(); bgVideo.removeAttribute('src'); bgVideo.load(); }
@@ -1293,10 +1294,9 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
   ${when('wevideo', `<p class="note" data-wev-status></p>
   <div class="wegrid" data-wev-list></div>
   <p><button class="btn" data-act="wev-random">Случайное видео</button></p>`)}
-  ${when('wallpaper', `<p class="note" data-we-status></p>
-  <p><button class="btn" data-act="we-random">Случайные обои</button></p>`)}
-  ${when('engine', `${sw('weAccent', 'Цвета из обоев', 'Акцент берётся из превью')}
-  ${sw('wePause', 'Пауза фона вместе с музыкой', 'Экономит видеокарту, пока музыка не играет')}`)}
+  ${when('wallpaper', '<p class="note" data-we-status></p>')}
+  ${when('engine', sw('weAccent', 'Цвета из обоев', 'Акцент берётся из превью'))}
+  ${when('wevideo', sw('wePause', 'Пауза видео вместе с музыкой', 'Экономит видеокарту, пока музыка не играет'))}
   <input type="file" accept="image/*" data-file="image" hidden>
   ${when('photo', range('blur', 'Размытие', 0, 90, ' px'))}
   ${when('backdrop', range('dim', 'Затемнение', 0, 90, '%') + range('bgSat', 'Насыщенность', 0, 200, '%'))}
@@ -1442,7 +1442,7 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
 
   // Everything that isn't appearance survives a look change.
   const LOOK_KEEPS = ['image', 'css', 'uiZoom', 'eco', 'eqOn', 'eqBands', 'eqPreset', 'myLooks', 'autoMode', 'dayLook', 'nightLook', 'dayFrom', 'nightFrom',
-    'pageLooks', 'trayClose', 'trackToast', 'hotkeys', 'barHide', 'navHide', 'wePause', 'weVideo', 'pin'];
+    'pageLooks', 'trayClose', 'trackToast', 'hotkeys', 'barHide', 'navHide', 'wePause', 'weVideo', 'weKind', 'pin'];
 
   function snapshot() {
     const copy = {};
@@ -1519,7 +1519,7 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
 
   /* ---------- Wallpaper Engine ---------- */
 
-  let wallpaper = null, wallpaperPaused = false, pauseTimer = 0, wallpaperWatched = false;
+  let wallpaper = null, wallpaperWatched = false;
 
   function renderWallpaper() {
     const el = panel.querySelector('[data-we-status]');
@@ -1546,21 +1546,14 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
   function onVideos(list) {
     const order = { video: 0, scene: 1, web: 2 };
     weVideos = list.slice().sort((a, b) => order[a.kind] - order[b.kind]);
-    const playable = weVideos.filter(v => v.kind === 'video');
-    if (playable.length && !playable.some(v => v.id === s.weVideo)) s.weVideo = playable[0].id;
+    const current = weVideos.find(v => v.id === s.weVideo) || weVideos.find(v => v.kind === 'video') || weVideos[0];
+    if (current) { s.weVideo = current.id; s.weKind = current.kind; }
     refresh();
   }
 
   function pickWallpaper(id) {
-    const item = weVideos.find(v => v.id === id);
-    if (item.kind === 'video') {
-      s.weVideo = id;
-      s.bg = 'wevideo';
-    } else {
-      send('we', 'open:' + id);
-      s.bg = 'wallpaper';
-      toast('На рабочем столе: ' + item.title);
-    }
+    s.weVideo = id;
+    s.weKind = weVideos.find(v => v.id === id).kind;
     refresh();
   }
 
@@ -1570,7 +1563,7 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
     if (!weVideos) { note.textContent = 'Ищу видео в Wallpaper Engine…'; return; }
     const count = kind => weVideos.filter(v => v.kind === kind).length;
     note.textContent = weVideos.length
-      ? `Видео: ${count('video')}, сцены: ${count('scene')}, веб: ${count('web')}. Видео играет внутри приложения. Сцены и веб-обои рисует только Wallpaper Engine: по клику они станут обоями на рабочем столе и будут видны в режиме прозрачности.`
+      ? `Видео: ${count('video')}, сцены: ${count('scene')}, веб: ${count('web')}. Видео играет как есть. Сцены и веб-обои показываются как их превью: картинка или GIF. Живую анимацию рисует только сам Wallpaper Engine. Чтобы её увидеть, поставьте эти обои в WE и включите режим прозрачности.`
       : 'Библиотека Wallpaper Engine пуста.';
     const key = weVideos.map(v => v.id).join();
     if (box.dataset.rendered !== key) {
@@ -1598,16 +1591,8 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
     syncWallpaperPause();
   }
 
-  // Debounced, because the player is briefly "not playing" between two tracks.
   function syncWallpaperPause() {
     if (s.bg === 'wevideo') renderVideo();
-    clearTimeout(pauseTimer);
-    const want = s.bg === 'wallpaper' && s.wePause && !now.playing;
-    if (want === wallpaperPaused) return;
-    pauseTimer = setTimeout(() => {
-      wallpaperPaused = want;
-      send('we', want ? 'pause' : 'play');
-    }, want ? 2500 : 0);
   }
 
   /* ---------- Sleep timer ---------- */
@@ -1814,10 +1799,9 @@ kbd{background:rgba(255,255,255,.1);border-radius:5px;padding:1px 6px;font:12px 
     } else if (d.act === 'lucky') applyLook(luckyLook());
     else if (d.act === 'stage') setStage(true);
     else if (d.act === 'look-save') saveMyLook();
-    else if (d.act === 'we-random') send('we', 'random');
     else if (d.act === 'wev-random') {
       const playable = (weVideos || []).filter(v => v.kind === 'video');
-      if (playable.length) { s.weVideo = pick(playable).id; refresh(); }
+      if (playable.length) { s.weVideo = pick(playable).id; s.weKind = 'video'; refresh(); }
     }
     else if (d.act === 'page-bind') {
       const name = panel.querySelector('[data-page-look]').value;
