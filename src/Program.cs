@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Web.Script.Serialization;
@@ -12,6 +13,13 @@ using System.Windows.Forms;
 using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+
+[assembly: AssemblyTitle("YM Studio")]
+[assembly: AssemblyProduct("YM Studio")]
+[assembly: AssemblyDescription("Неофициальный клиент Яндекс Музыки")]
+[assembly: AssemblyVersion("1.0.2.0")]
+[assembly: AssemblyFileVersion("1.0.2.0")]
+[assembly: AssemblyInformationalVersion("1.0")] // SignPath requires the same product version in every build
 
 namespace YMStudio
 {

@@ -1,0 +1,57 @@
+name: Release
+
+# A version tag builds and publishes a release. A manual run only builds, to check that the code compiles.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        shell: pwsh
+        run: .\build.ps1
+
+      - name: Upload unsigned build
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: ym-studio-unsigned
+          path: dist/*
+          if-no-files-found: error
+
+      # Skipped until SignPath approves the project and the repository variable is set.
+      # Every signing request waits for a manual approval in SignPath, hence the long timeout.
+      - name: Sign with SignPath
+        if: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ym-studio
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 86400
+          output-artifact-directory: signed
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $source = if (Test-Path signed) { 'signed' } else { 'dist' }
+          Compress-Archive -Path "$source/*" -DestinationPath "YMStudio-$env:GITHUB_REF_NAME-win-x64.zip"
+
+      - name: Publish release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create $env:GITHUB_REF_NAME "YMStudio-$env:GITHUB_REF_NAME-win-x64.zip" --title "YM Studio $env:GITHUB_REF_NAME" --generate-notes --latest

@@ -23,7 +23,9 @@
 
 Нужна Windows 10 или 11 и [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/). В Windows 11 он обычно уже установлен.
 
-У программы нет цифровой подписи, поэтому Windows SmartScreen может показать предупреждение. Если вы доверяете файлу, нажмите «Подробнее», затем «Выполнить в любом случае». Либо соберите программу сами из исходников.
+У программы пока нет цифровой подписи (см. [Code signing policy](#code-signing-policy)), поэтому Windows SmartScreen может показать предупреждение. Если вы доверяете файлу, нажмите «Подробнее», затем «Выполнить в любом случае». Либо соберите программу сами из исходников.
+
+Удаление: закройте программу и удалите её папку. Настройки и вход хранятся в `%LOCALAPPDATA%\YMStudio`, эту папку тоже можно удалить.
 
 ## Сборка
 
@@ -48,6 +50,25 @@
 - Если в Windows отключены анимации (`prefers-reduced-motion`), фон и эффекты замирают.
 
 Настройки хранятся в профиле `%LOCALAPPDATA%\YMStudio\WebView2`.
+
+## Code signing policy
+
+Текущие сборки не подписаны. Проект подаёт заявку в SignPath Foundation, и подпись появится только после её одобрения. Тогда условия будут такими:
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+Роли в проекте:
+
+- Committers and reviewers: [zairtak-netizen](https://github.com/zairtak-netizen)
+- Approvers: [zairtak-netizen](https://github.com/zairtak-netizen)
+
+Сборки создаются из этого репозитория на GitHub Actions, каждый выпуск подтверждается вручную.
+
+### Privacy policy
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+Программа открывает сайт Яндекс Музыки, и при его использовании действует [политика конфиденциальности Яндекса](https://yandex.ru/legal/confidential/). Сама программа никуда не отправляет ваши данные: настройки хранятся на вашем компьютере.
 
 ## Лицензия
 
